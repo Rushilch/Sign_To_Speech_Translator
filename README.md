@@ -1,183 +1,92 @@
-# **VaaniVerse — Multilingual Voice ↔ Sign Language Interpreter**
+# VaaniVerse — Multilingual Voice & Sign Language Interpreter
 
-**VaaniVerse** is a real-time **multilingual communication platform** that bridges the gap between **spoken languages and Indian Sign Language (ISL)**.
-Built using **Computer Vision, Machine Learning, Speech Recognition, and Translation**, the system enables seamless interaction between hearing-impaired and hearing individuals.
-
-The application is implemented as a **desktop GUI using Tkinter**, with real-time camera input, speech input, and intelligent sign playback.
+VaaniVerse is a real-time desktop application that performs bidirectional translation between spoken Indian languages and Indian Sign Language (ISL). The pipeline combines MediaPipe-based pose estimation, a KNN classifier trained on hybrid hand-face feature vectors, Google Speech Recognition, and gTTS — all wired together in a Tkinter GUI with two independent operating modes.
 
 ---
 
-## 🔑 Key Features
+## Architecture Overview
 
-### 🎤 Speak → Sign
+The system runs two distinct pipelines depending on mode:
 
-* Speech input in **multiple Indian languages**
-* Automatic translation to **English**
-* Hierarchical sign search:
+**Speak → Sign** is a sequential translation pipeline: raw audio → STT → language detection → `googletrans` translation to English → hierarchical sign lookup (sentence → word → character fallback) → GIF/image playback via Pillow.
 
-  * **Sentence-level signs**
-  * **Word-level signs**
-  * **Letter-level fallback**
-* Smooth sign playback using images and GIFs
-
-### ✋ Sign → Speech
-
-* Real-time hand & face tracking using **MediaPipe**
-* Hybrid feature extraction (hand + face spatial relationship)
-* **KNN-based sign recognition**
-* Automatic sentence construction
-* Translation to selected language
-* **Google Text-to-Speech output**
-
-### 🌐 Multilingual Support
-
-Supported languages:
-
-* English
-* Hindi
-* Telugu
-* Tamil
-* Bengali
-* Marathi
-* Gujarati
-* Kannada
+**Sign → Speech** is a real-time inference loop: webcam frames → MediaPipe Hands + Face Mesh → landmark extraction → feature normalization → KNN inference → prediction smoothing → sentence construction → `googletrans` → gTTS audio output.
 
 ---
 
-## 🧠 Intelligent Components
+## Feature Extraction & Model
 
-### 🔍 Computer Vision
+Each frame produces a hybrid feature vector built from:
 
-* Hand landmark detection (21 points per hand)
-* Face landmark detection (nose reference)
-* Feature normalization and spatial encoding
+- **Hand geometry:** 21 landmarks per hand (x, y, z), normalized relative to the wrist to remove positional variance. Both hands are encoded; absent hands are zero-padded.
+- **Face-relative spatial encoding:** Euclidean distances from key hand landmarks to the nose tip, providing scale-invariant upper-body context.
+- **Motion placeholder:** Reserved slots in the vector for velocity/acceleration features (not yet populated — currently static-only).
 
-### 🧠 Machine Learning
+The resulting vector is fed to a **distance-weighted KNN classifier** (`sklearn.neighbors.KNeighborsClassifier`, weights=`distance`). Predictions are stabilized using a fixed-length sliding window — the modal prediction over the last N frames is emitted, suppressing per-frame noise.
 
-* Hybrid feature vector (static + motion placeholder)
-* **K-Nearest Neighbors (KNN)** classifier
-* Distance-weighted prediction
-* Stable prediction window for accuracy
-
-### 🗣 Speech & Translation
-
-* Google Speech Recognition
-* Google Translate (`googletrans`)
-* Google Text-to-Speech (`gTTS`)
+Training runs `build_model.py` (landmark extraction → `.npy` feature arrays + `hybrid_labels.txt`) then `train_model.py` (KNN fit → `hybrid_model.pkl` via `joblib`).
 
 ---
 
-## 🖥 Interface & UX
+## Sign Lookup Hierarchy
 
-* Clean, responsive Tkinter UI
-* Two-tab workflow:
+When translating text to signs, the system queries the `ISL_CSLRT_Corpus` in order:
 
-  * **Speak to Sign**
-  * **Sign to Speech**
-* Live camera feed with overlays
-* Real-time sentence building
-* Translation & phonetic display
+1. **Sentence-level:** exact phrase match against `Sentence_Level/`
+2. **Word-level:** per-token lookup against `Word_Level/`
+3. **Letter-level fallback:** fingerspelling from `Letter_Level/` for any unmatched token
+
+This degrades gracefully — unknown vocabulary never hard-fails, it fingerspells instead.
 
 ---
 
-## 🚀 Getting Started
-
-### 1️⃣ Clone the Repository
+## Getting Started
 
 ```bash
 git clone https://github.com/your-username/VaaniVerse.git
 cd VaaniVerse
-```
-
-### 2️⃣ Create Virtual Environment (Python 3.11 Recommended)
-
-```bash
 python -m venv venv
 venv\Scripts\activate
-```
 
-### 3️⃣ Install Dependencies
-
-```bash
 pip install opencv-python mediapipe numpy scikit-learn joblib pillow tqdm
-pip install SpeechRecognition googletrans==4.0.0-rc1 gtts
-```
+pip install SpeechRecognition "googletrans==4.0.0-rc1" gtts
 
-> ⚠️ Python **3.11** is strongly recommended for MediaPipe stability.
-
----
-
-## ▶️ Run the Application
-
-```bash
 python app.py
 ```
 
-The application launches a GUI with **Speak → Sign** and **Sign → Speech** modes.
+> **Python 3.11 required.** MediaPipe's prebuilt wheels don't support 3.12+ cleanly as of this writing.
 
 ---
 
-## 🧪 Model Training & Dataset Preparation
-
-### 📁 Dataset Structure
+## Training Pipeline
 
 ```
 data/
-├── HELLO/
-│   ├── img1.jpg
-│   ├── img2.jpg
+├── HELLO/          ← one folder per sign class
 ├── THANK_YOU/
-├── HOW_ARE_YOU/
+└── HOW_ARE_YOU/
 ```
-
-Each folder name represents **one sign class**.
-
----
-
-### 🧩 Step 1: Feature Extraction
-
-Run:
 
 ```bash
-python build_model.py
+python build_model.py   # runs MediaPipe on every image, writes hybrid_data/*.npy + hybrid_labels.txt
+python train_model.py   # loads .npy arrays, fits KNN, serializes to hybrid_model.pkl
 ```
 
-This script:
-
-* Detects hand & face landmarks
-* Normalizes hand geometry
-* Computes face-relative distances
-* Creates a **hybrid feature vector**
-* Saves features as `.npy`
-* Generates `hybrid_labels.txt`
+Feature extraction is the slow step — `tqdm` progress bars track per-class processing. Re-run both scripts any time the dataset changes; the `.pkl` is not incrementally updatable.
 
 ---
 
-### 🧠 Step 2: Model Training
-
-Run:
-
-```bash
-python train_model.py
-```
-
-* Trains a **KNN classifier**
-* Uses distance-based weighting
-* Saves trained model as `hybrid_model.pkl`
-
----
-
-## 🗂 Project Structure
+## Project Structure
 
 ```
 VaaniVerse/
-├── app.py                     # Main application
-├── build_model.py              # Feature extraction
-├── train_model.py              # Model training
-├── hybrid_model.pkl            # Trained model
-├── hybrid_labels.txt           # Label mapping
-├── data/                       # Raw dataset
-├── hybrid_data/                # Extracted features
+├── app.py                  # GUI entrypoint, mode switching, camera loop
+├── build_model.py          # Landmark extraction → .npy features
+├── train_model.py          # KNN training → hybrid_model.pkl
+├── hybrid_model.pkl        # Serialized classifier
+├── hybrid_labels.txt       # Index-to-class label mapping
+├── data/                   # Raw sign images (training input)
+├── hybrid_data/            # Extracted feature arrays (build output)
 └── images/
     └── ISL_CSLRT_Corpus/
         ├── Sentence_Level/
@@ -187,47 +96,35 @@ VaaniVerse/
 
 ---
 
-## 🔊 Text-to-Speech Behavior
+## Constraints & Known Limitations
 
-| Mode             | Output                 |
-| ---------------- | ---------------------- |
-| Speak (Eng)      | English sentence       |
-| Speak (Phonetic) | Native language speech |
-
-Uses **Google TTS** for accurate pronunciation of regional languages.
-
----
-
-## ⚠️ Notes & Limitations
-
-* Requires **visible hands and face**
-* Accuracy depends on dataset quality
-* Motion features are placeholders (extensible)
-* Requires stable lighting for best results
+- **Occlusion sensitivity:** Both hands and the face must be simultaneously visible. Partial occlusion produces degraded or zeroed features and reduces classification confidence significantly.
+- **Static-only recognition:** The current feature vector has no temporal component. Signs distinguished primarily by motion (not hand shape) are either misclassified or collapsed into a single class.
+- **KNN scalability:** Inference time scales linearly with training set size. For large vocabularies (500+ classes), consider switching to a quantized index (e.g. `faiss`) or replacing KNN with a shallow MLP.
+- **`googletrans` stability:** The `4.0.0-rc1` release uses an unofficial reverse-engineered API. It can break without notice on Google's end — consider the official Cloud Translation API for production use.
+- **Lighting dependence:** MediaPipe's hand detector degrades under low contrast or overexposed conditions. No preprocessing (CLAHE, histogram equalization) is currently applied.
 
 ---
 
-## 🧪 Tech Stack
+## Planned Work
 
-| Layer       | Technologies          |
-| ----------- | --------------------- |
-| Language    | Python 3.11           |
-| UI          | Tkinter               |
-| Vision      | OpenCV, MediaPipe     |
-| ML          | NumPy, Scikit-Learn   |
-| Speech      | Google Speech API     |
-| Translation | googletrans           |
-| TTS         | Google Text-to-Speech |
-| Storage     | Joblib                |
+- **Temporal modeling:** Replace static feature vector with a sequence encoder (LSTM or TCN) operating over a rolling frame buffer to capture motion-dependent signs.
+- **Confidence visualization:** Surface per-prediction KNN distance scores in the UI to flag low-confidence outputs.
+- **Dataset recorder:** In-app tool to capture and label new signs directly into `data/`, streamlining dataset expansion.
+- **Transformer-based recognizer:** Evaluate MediaPipe + lightweight ViT or graph attention network as a drop-in replacement for KNN.
+- **Deployment:** Package as a cross-platform binary (PyInstaller) and explore a browser port via WebAssembly + TensorFlow.js.
 
 ---
 
-## 🔮 Planned Enhancements
+## Stack
 
-* Temporal motion modeling
-* Confidence visualization
-* Dataset recording tool
-* Transformer-based recognition
-* Mobile & web deployment
-
----
+| Layer | Implementation |
+|---|---|
+| Language | Python 3.11 |
+| UI | Tkinter |
+| Vision | OpenCV, MediaPipe Hands + Face Mesh |
+| ML | NumPy, Scikit-Learn (KNN), Joblib |
+| Speech input | Google Speech Recognition (`SpeechRecognition`) |
+| Translation | googletrans 4.0.0-rc1 |
+| TTS | gTTS (Google Text-to-Speech) |
+| Image rendering | Pillow |
