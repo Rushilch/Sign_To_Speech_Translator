@@ -1,183 +1,75 @@
-# **VaaniVerse — Multilingual Voice ↔ Sign Language Interpreter**
+---
 
-**VaaniVerse** is a real-time **multilingual communication platform** that bridges the gap between **spoken languages and Indian Sign Language (ISL)**.
-Built using **Computer Vision, Machine Learning, Speech Recognition, and Translation**, the system enables seamless interaction between hearing-impaired and hearing individuals.
+# VaaniVerse — Multilingual Voice & Sign Language Interpreter
 
-The application is implemented as a **desktop GUI using Tkinter**, with real-time camera input, speech input, and intelligent sign playback.
+VaaniVerse is a desktop app that lets hearing and hearing-impaired people communicate in real time. It converts spoken Indian languages into Indian Sign Language (ISL) visuals, and reads ISL signs back as speech — bridging a gap that most software doesn't even try to address.
 
 ---
 
-## 🔑 Key Features
+## What It Does
 
-### 🎤 Speak → Sign
+### Speak → Sign
 
-* Speech input in **multiple Indian languages**
-* Automatic translation to **English**
-* Hierarchical sign search:
+You speak in any supported Indian language. The app translates your words to English, then looks up the matching sign — first as a full sentence, then word by word, and finally letter by letter if nothing else fits. The result plays back as images or GIFs on screen.
 
-  * **Sentence-level signs**
-  * **Word-level signs**
-  * **Letter-level fallback**
-* Smooth sign playback using images and GIFs
+### Sign → Speech
 
-### ✋ Sign → Speech
+You sign in front of your webcam. MediaPipe tracks your hands and face in real time, extracting landmark positions that a KNN classifier uses to identify the sign. Recognized signs get stitched into a sentence, translated into your language of choice, and read aloud via Google TTS.
 
-* Real-time hand & face tracking using **MediaPipe**
-* Hybrid feature extraction (hand + face spatial relationship)
-* **KNN-based sign recognition**
-* Automatic sentence construction
-* Translation to selected language
-* **Google Text-to-Speech output**
+### Language Support
 
-### 🌐 Multilingual Support
-
-Supported languages:
-
-* English
-* Hindi
-* Telugu
-* Tamil
-* Bengali
-* Marathi
-* Gujarati
-* Kannada
+English, Hindi, Telugu, Tamil, Bengali, Marathi, Gujarati, Kannada.
 
 ---
 
-## 🧠 Intelligent Components
+## How It Works Under the Hood
 
-### 🔍 Computer Vision
+**Computer vision:** MediaPipe detects 21 hand landmarks per hand, plus a nose reference from face detection. Positions are normalized and encoded into a spatial feature vector.
 
-* Hand landmark detection (21 points per hand)
-* Face landmark detection (nose reference)
-* Feature normalization and spatial encoding
+**Recognition:** A K-Nearest Neighbors classifier, trained on a hybrid feature set, matches incoming vectors to known sign classes. Predictions are smoothed over a short window to avoid jitter.
 
-### 🧠 Machine Learning
-
-* Hybrid feature vector (static + motion placeholder)
-* **K-Nearest Neighbors (KNN)** classifier
-* Distance-weighted prediction
-* Stable prediction window for accuracy
-
-### 🗣 Speech & Translation
-
-* Google Speech Recognition
-* Google Translate (`googletrans`)
-* Google Text-to-Speech (`gTTS`)
+**Speech pipeline:** Google Speech Recognition handles mic input. `googletrans` handles translation. `gTTS` handles voice output.
 
 ---
 
-## 🖥 Interface & UX
-
-* Clean, responsive Tkinter UI
-* Two-tab workflow:
-
-  * **Speak to Sign**
-  * **Sign to Speech**
-* Live camera feed with overlays
-* Real-time sentence building
-* Translation & phonetic display
-
----
-
-## 🚀 Getting Started
-
-### 1️⃣ Clone the Repository
+## Getting Started
 
 ```bash
 git clone https://github.com/your-username/VaaniVerse.git
 cd VaaniVerse
-```
-
-### 2️⃣ Create Virtual Environment (Python 3.11 Recommended)
-
-```bash
 python -m venv venv
 venv\Scripts\activate
-```
-
-### 3️⃣ Install Dependencies
-
-```bash
 pip install opencv-python mediapipe numpy scikit-learn joblib pillow tqdm
 pip install SpeechRecognition googletrans==4.0.0-rc1 gtts
-```
-
-> ⚠️ Python **3.11** is strongly recommended for MediaPipe stability.
-
----
-
-## ▶️ Run the Application
-
-```bash
 python app.py
 ```
 
-The application launches a GUI with **Speak → Sign** and **Sign → Speech** modes.
+> Python 3.11 is strongly recommended — MediaPipe has known issues on newer versions.
 
 ---
 
-## 🧪 Model Training & Dataset Preparation
+## Training Your Own Model
 
-### 📁 Dataset Structure
-
-```
-data/
-├── HELLO/
-│   ├── img1.jpg
-│   ├── img2.jpg
-├── THANK_YOU/
-├── HOW_ARE_YOU/
-```
-
-Each folder name represents **one sign class**.
-
----
-
-### 🧩 Step 1: Feature Extraction
-
-Run:
+Place your sign images in `data/`, one folder per class (e.g. `data/HELLO/`, `data/THANK_YOU/`).
 
 ```bash
-python build_model.py
+python build_model.py   # extract features → saves .npy + labels
+python train_model.py   # train KNN → saves hybrid_model.pkl
 ```
-
-This script:
-
-* Detects hand & face landmarks
-* Normalizes hand geometry
-* Computes face-relative distances
-* Creates a **hybrid feature vector**
-* Saves features as `.npy`
-* Generates `hybrid_labels.txt`
 
 ---
 
-### 🧠 Step 2: Model Training
-
-Run:
-
-```bash
-python train_model.py
-```
-
-* Trains a **KNN classifier**
-* Uses distance-based weighting
-* Saves trained model as `hybrid_model.pkl`
-
----
-
-## 🗂 Project Structure
+## Project Layout
 
 ```
 VaaniVerse/
-├── app.py                     # Main application
-├── build_model.py              # Feature extraction
-├── train_model.py              # Model training
-├── hybrid_model.pkl            # Trained model
-├── hybrid_labels.txt           # Label mapping
-├── data/                       # Raw dataset
-├── hybrid_data/                # Extracted features
+├── app.py
+├── build_model.py
+├── train_model.py
+├── hybrid_model.pkl
+├── hybrid_labels.txt
+├── data/
+├── hybrid_data/
 └── images/
     └── ISL_CSLRT_Corpus/
         ├── Sentence_Level/
@@ -187,47 +79,18 @@ VaaniVerse/
 
 ---
 
-## 🔊 Text-to-Speech Behavior
+## Known Limitations
 
-| Mode             | Output                 |
-| ---------------- | ---------------------- |
-| Speak (Eng)      | English sentence       |
-| Speak (Phonetic) | Native language speech |
-
-Uses **Google TTS** for accurate pronunciation of regional languages.
+The sign recognizer needs a clear view of both hands and your face. Poor lighting noticeably drops accuracy. Motion-based features are stubbed out for now — the current model only uses static hand geometry. Accuracy is also tied to how much training data you have per class.
 
 ---
 
-## ⚠️ Notes & Limitations
+## What's Next
 
-* Requires **visible hands and face**
-* Accuracy depends on dataset quality
-* Motion features are placeholders (extensible)
-* Requires stable lighting for best results
+Temporal modeling for motion-dependent signs, a built-in dataset recording tool, confidence score display, a transformer-based recognizer to replace KNN, and eventually a web or mobile port.
 
 ---
 
-## 🧪 Tech Stack
+## Tech Stack
 
-| Layer       | Technologies          |
-| ----------- | --------------------- |
-| Language    | Python 3.11           |
-| UI          | Tkinter               |
-| Vision      | OpenCV, MediaPipe     |
-| ML          | NumPy, Scikit-Learn   |
-| Speech      | Google Speech API     |
-| Translation | googletrans           |
-| TTS         | Google Text-to-Speech |
-| Storage     | Joblib                |
-
----
-
-## 🔮 Planned Enhancements
-
-* Temporal motion modeling
-* Confidence visualization
-* Dataset recording tool
-* Transformer-based recognition
-* Mobile & web deployment
-
----
+Python 3.11 · Tkinter · OpenCV · MediaPipe · NumPy · Scikit-Learn · Google Speech API · googletrans · gTTS · Joblib
