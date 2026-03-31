@@ -7,8 +7,12 @@ SpeechRecognition
 deep-translator
 mediapipe
 pyaudio; platform_system == "Windows"
-pyaudio; platform_system == "Darwin"
-pyaudio; platform_system == "Linux"
 tqdm
 groq
 python-dotenv
+pygame 
+gtts 
+joblib 
+scikit-learn 
+
+
