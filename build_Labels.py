@@ -78,7 +78,7 @@ def main():
     with open("hybrid_labels.txt", "w") as f:
         f.write("\n".join(labels))
 
-    print("✅ Hybrid static dataset built")
+    print("Hybrid static dataset built")
 
 if __name__ == "__main__":
     main()
