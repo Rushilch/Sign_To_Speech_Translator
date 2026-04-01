@@ -119,7 +119,7 @@ def speak_google_tts(text, lang_code):
     finally:
         try:
             pygame.mixer.music.stop()
-            pygame.mixer.music.unload()  # 🔑 VERY IMPORTANT
+            pygame.mixer.music.unload()  
             time.sleep(0.2)              # allow OS to release file
         except:
             pass
@@ -475,7 +475,7 @@ class VaaniVerse(tk.Tk):
 
     def build_ui(self):
         
-        # ---- UI STATE VARIABLES (MUST EXIST BEFORE WIDGETS) ----
+        
         self.speak_lang = tk.StringVar(value="Hindi")
         self.trans_lang = tk.StringVar(value="English")
         # Header
@@ -489,7 +489,7 @@ class VaaniVerse(tk.Tk):
         tabs = ttk.Notebook(main)
         tabs.pack(fill="both", expand=True)
         
-        # --- TAB 1: Speak -> Sign ---
+        # TAB 1
         t1 = tk.Frame(tabs, bg=self.COLORS['background'])
         tabs.add(t1, text="🎤 Speak to Sign")
         
@@ -558,7 +558,7 @@ class VaaniVerse(tk.Tk):
         self.sign_label.pack(pady=8)
 
     
-        # Buttons (CREATE FIRST, THEN PACK)
+        # Buttons
         self.speak_btn = ModernButton(
             left_col.inner,
             text="🎤 Start Speaking",
@@ -573,11 +573,10 @@ class VaaniVerse(tk.Tk):
             command=self.stop_listen,
             bg_color=self.COLORS['danger']
         )
-        # stop button hidden initially (same behavior as before)
 
 
         
-        # --- TAB 2: Sign -> Speech ---
+        # --- TAB 2
         t2 = tk.Frame(tabs, bg=self.COLORS['background'])
         tabs.add(t2, text="✋ Sign to Speech")
         
@@ -597,7 +596,7 @@ class VaaniVerse(tk.Tk):
             lb,
             text="Settings",
             bg=self.COLORS['background'],
-            fg=self.COLORS['muted'],      # 👈 title text color
+            fg=self.COLORS['muted'],     
             labelanchor="n"
         )
         ls.pack(fill="x", pady=5)
@@ -612,18 +611,17 @@ class VaaniVerse(tk.Tk):
             height=420
         )
         self.vid_con.pack(pady=10)
-        self.vid_con.pack_propagate(False)  # 🔑 PREVENT RESIZE
+        self.vid_con.pack_propagate(False)  
 
 
         self.vid = tk.Label(self.vid_con, bg="#1E272E")
         self.vid.pack(fill="both", expand=False)
 
         
-        # Right: Output
+        # Output
         right = Card(split, "Recognized Output")
         right.pack(side="right", fill="y", padx=10)
 
-        # ⭐ Modern AI toggle (switch style)
 
         toggle_row = tk.Frame(right.inner, bg=self.COLORS["card"])
         toggle_row.pack(fill="x", pady=(4, 8))
@@ -662,10 +660,10 @@ class VaaniVerse(tk.Tk):
         
         self.w_lbl = self.make_card(out, "Current Sign:", self.COLORS['secondary'], size=16)
 
-        # ⭐ RAW sentence (model output)
+        #  RAW sentence (model output)
         self.s_lbl = self.make_card(out, "Raw Sentence:", self.COLORS['text'], size=12)
 
-        # ⭐ AI enhanced sentence
+        # AI enhanced sentence
         self.ai_lbl = self.make_card(out, "AI Enhanced Sentence:", self.COLORS['success'], size=12)
 
         # Translation stays
@@ -811,13 +809,13 @@ class VaaniVerse(tk.Tk):
         src_lang = self.speak_lang.get()
         src_code = LANGUAGES[src_lang]['code']
 
-        # ⭐ Strict language dominance check (50%)
+        # Strict language dominance check (50%)
         if not self.groq_language_ratio(text, src_code):
             self.update_speak_status("Language mismatch — please speak selected language", "danger")
             return
 
 
-        # 🔁 STEP 1: Translate spoken text → English
+        # Translate spoken text → English
         res = self.translate_wrapper(text, src_code=src_code, dest_code='en')
 
         if res and res.text:
@@ -826,7 +824,7 @@ class VaaniVerse(tk.Tk):
             # Fallback: assume already English
             english_text = text
 
-        # 🔁 STEP 2: Normalize English ONLY
+        #  Normalize English ONLY
         english_text = re.sub(r"[^a-zA-Z ]", "", english_text).lower().strip()
 
         if not english_text:
@@ -835,7 +833,7 @@ class VaaniVerse(tk.Tk):
 
         self.update_speak_status(f"Playing signs for: {english_text}", 'success')
 
-        # 🔁 STEP 3: Play signs using ENGLISH ONLY
+        # Play signs using ENGLISH ONLY
         self.play_sign_sequence(english_text)
 
 
