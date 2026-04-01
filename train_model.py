@@ -20,4 +20,4 @@ knn = KNeighborsClassifier(n_neighbors=5, weights="distance")
 knn.fit(X, y)
 
 joblib.dump(knn, "hybrid_model.pkl")
-print("✅ Hybrid KNN trained")
+print("Hybrid KNN trained")
